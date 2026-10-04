@@ -1,0 +1,25 @@
+// Entry point of one overlay library, configured from the overlay's meta.txt by
+// profiles/tutikumo/CMakeLists.txt. Everything else in the library is psp_recomp
+// output carrying the @TUTIKUMO_OVERLAY_PREFIX@ symbol prefix.
+#define TUTIKUMO_OVERLAY_MODULE 1
+#include "overlay_module.hpp"
+
+#include "psprecomp/runtime.hpp"
+
+namespace psprecomp {
+void register_@TUTIKUMO_OVERLAY_PREFIX@_functions(Runtime &runtime);
+}
+
+namespace {
+
+constexpr tutikumo::OverlayModuleInfo kInfo{tutikumo::kOverlayAbiVersion, @TUTIKUMO_OVERLAY_BASE@u,
+                                          @TUTIKUMO_OVERLAY_SIZE@u, @TUTIKUMO_OVERLAY_CODE_SIZE@u,
+                                          @TUTIKUMO_OVERLAY_HASH@ull, "@TUTIKUMO_OVERLAY_NAME@"};
+
+} // namespace
+
+const tutikumo::OverlayModuleInfo *tutikumo_overlay_info() { return &kInfo; }
+
+void tutikumo_register_overlay(psprecomp::Runtime &runtime) {
+    psprecomp::register_@TUTIKUMO_OVERLAY_PREFIX@_functions(runtime);
+}

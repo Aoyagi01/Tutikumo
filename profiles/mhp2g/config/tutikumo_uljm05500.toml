@@ -1,0 +1,36 @@
+[game]
+name = "Monster Hunter Portable 2nd G"
+disc_id = "ULJM-05500"
+psp_disc_id = "ULJM05500"
+save_id = "ULJM05500"
+region = "NTSC-J"
+module = "MonsterHunterPortable2ndG"
+disc_version = "1.01"
+# The load image (0x08804000..0x09D60400 including BSS) fits the PSP-1000's
+# 32 MiB; the host still creates 64 MiB, which its kernel is laid out for.
+ram_mb = 64
+load_base = "0x08804000"
+entry = "0x089094D4"
+gp = "0x089CEB50"
+
+[input]
+# PSP_GAME/SYSDIR/EBOOT.BIN as on the disc (encrypted); it identifies the release.
+encrypted_eboot_sha256 = "a62ecebb1bd42a15c556e1f053d3535cc14b0904214c16182cf9762a085f595a"
+# PSP_GAME/SYSDIR/BOOT.BIN, the same executable unencrypted, which the profile
+# is generated from.
+expected_sha256 = "3c221249fcc1c3455ea8aff372993cb78a88ad90bde03a07c3da6974c2bcc846"
+executable = "game/EBOOT.ELF"
+game_root = "game/PSP_GAME/USRDIR"
+
+[output]
+analysis_dir = "analysis"
+generated_dir = "generated"
+
+[overlays]
+# Code overlays from USRDIR/DATA.BIN, loaded into fixed slots at run time.
+slots = [
+  "0x09A5A580", # *_task mode overlays (12)
+  "0x09C14280", # demo_sub, game_sub
+  "0x09D15100", # em* monsters (17)
+  "0x09D5DF80", # stage* areas (267)
+]
