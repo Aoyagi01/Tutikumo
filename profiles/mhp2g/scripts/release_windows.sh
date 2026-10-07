@@ -208,6 +208,11 @@ write_readme() {
         echo "このアーカイブには、ゲームのデータ、ディスクイメージ、セーブは含まれていません。"
         echo "Esc (ゲームパッドは L3+R3) でメニューが開きます。"
         echo
+        echo "※ Windows 11 の「スマートアプリコントロール」がオンだと、署名のない DLL が"
+        echo "   ブロックされ、通知が何度も出たり起動が止まったりします(ウイルス検出ではありません)。"
+        echo "   その場合は「Windows セキュリティ → アプリとブラウザーの制御 →"
+        echo "   スマートアプリコントロールの設定」でオフにしてください。"
+        echo
         echo "[English]"
         echo "1. Extract the entire folder."
         echo "2. Run Tutikumo.exe."
@@ -215,6 +220,10 @@ write_readme() {
         echo "   Monster Hunter Portable 2nd G (ULJM-05500); dropping the .iso on the window works too."
         echo "4. No HD texture pack is included. Get a PPSSPP-format pack yourself and drop its"
         echo "   folder on the window while the game runs to import it."
+        echo "Note: Tutikumo's executables are not code-signed. With Windows 11's Smart App"
+        echo "Control on, its DLLs get blocked: repeated notifications, a start that stalls, or"
+        echo "\"error 4551\" in the log. This is not a virus detection. Turn it off in Windows"
+        echo "Security > App & browser control > Smart App Control settings if you choose to."
         echo
         if [[ "$portable" == 1 ]]; then
             echo "This is the portable version: because of portable.txt, Tutikumo keeps its"
