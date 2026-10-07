@@ -259,6 +259,29 @@ void matching() {
     check(orbit.cut == nullptr && near(orbit.camera_distance, 48.8f, 0.5f),
           "a 7 degree orbit at 400 units moves the eye 49 units, however far the scenery swings");
 
+    // A small room under a still camera, and a hunter in armor of many parts
+    // that outnumber the scenery, turning on the spot as it starts to walk:
+    // the camera stands still all the same.
+    for (const bool skinned : {false, true}) {
+        std::vector<DrawSummary> room_before = scene(20u), room_after = scene(20u);
+        for (std::uint32_t part = 0; part < 60u; ++part) {
+            DrawSummary before_part = draw(200u + part, 0.0f), after_part = draw(200u + part, 0.0f);
+            before_part.world = transform(0.0f, 0.0f, 0.0f, -300.0f);
+            after_part.world = transform(10.0f + 0.3f * static_cast<float>(part), 0.0f, 0.0f, -300.0f);
+            before_part.skinned = after_part.skinned = skinned;
+            room_before.push_back(before_part);
+            room_after.push_back(after_part);
+        }
+        mark_eligible(room_before, kShown);
+        mark_eligible(room_after, kShown);
+        Matcher room;
+        const Matching &hunter_turns = room.match(room_before, room_after, thresholds);
+        check(hunter_turns.camera_found && near(hunter_turns.camera_angle_degrees, 0.0f, 0.01f) &&
+                  near(hunter_turns.camera_distance, 0.0f, 0.1f),
+              skinned ? "a skinned hunter outnumbering the scenery is not taken for the camera"
+                      : "the motion most draws share is the camera's, not the median");
+    }
+
     const Matching &turned = matcher.match(scene(100u), scene(100u, 40.0f), thresholds);
     check(turned.cut != nullptr && std::strcmp(turned.cut, "camera turned") == 0, "a 40 degree turn is a cut");
 

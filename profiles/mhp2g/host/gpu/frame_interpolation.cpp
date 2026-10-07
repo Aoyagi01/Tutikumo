@@ -10,6 +10,21 @@ constexpr float kPi = 3.14159265358979f;
 
 float length3(const float *v) noexcept { return std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); }
 
+// Matched rigid draws needed before the skinned ones are left out of the
+// camera's estimate.
+constexpr std::size_t kMinRigidSamples = 16u;
+
+// Two eye-space motions alike enough to be the same camera motion: what one
+// matrix product and inverse leave of rounding between draws at different
+// places, and no more.
+bool same_motion(const Matrix &a, const Matrix &b) noexcept {
+    for (const std::size_t i : {0u, 1u, 2u, 4u, 5u, 6u, 8u, 9u, 10u})
+        if (std::fabs(a[i] - b[i]) > 2e-3f) return false;
+    for (const std::size_t i : {12u, 13u, 14u})
+        if (std::fabs(a[i] - b[i]) > 1.0f + 1e-3f * std::fabs(a[i])) return false;
+    return true;
+}
+
 } // namespace
 
 DrawSummary summarize(const DrawCall &call) {
@@ -139,20 +154,28 @@ const Matching &Matcher::match(const std::vector<DrawSummary> &older, const std:
 
     // How the camera moved: this game keeps the view matrix almost fixed and
     // puts the camera's rotation into every world matrix, so the camera shows
-    // in how each matched draw moved in eye space (view times world). Most of
-    // a scene stands still, so the median over the matched draws is the
-    // camera's turn and move, and characters moving on their own do not
-    // count. A sample of up to 256 pairs spread over the frame is enough.
+    // in how each matched draw moved in eye space (view times world). Whatever
+    // stands still moved exactly as the camera did, so the motion most draws
+    // share is the camera's turn and move. A sample of up to 256 pairs spread
+    // over the frame is enough. Skinned draws, the characters, are left out
+    // while there are others: in a small room a hunter in armor of many parts
+    // can outnumber the scenery, and a hunter turning on the spot was taken for
+    // the camera turning, which shook the whole picture.
     struct Sample {
         float turn;
         Matrix motion;
     };
     std::vector<Sample> samples;
-    const std::size_t stride = std::max<std::size_t>(1u, out.matched / 256u);
+    std::size_t rigid = 0u;
+    for (std::size_t i = 0; i < older.size(); ++i)
+        if (out.newer_of[i] >= 0 && !older[i].skinned) ++rigid;
+    const bool rigid_only = rigid >= kMinRigidSamples;
+    const std::size_t candidates = rigid_only ? rigid : out.matched;
+    const std::size_t stride = std::max<std::size_t>(1u, candidates / 256u);
     std::size_t seen = 0u;
     for (std::size_t i = 0; i < older.size(); ++i) {
         const std::int32_t partner = out.newer_of[i];
-        if (partner < 0 || seen++ % stride != 0u) continue;
+        if (partner < 0 || (rigid_only && older[i].skinned) || seen++ % stride != 0u) continue;
         const DrawSummary &from = older[i];
         const DrawSummary &to = newer[static_cast<std::size_t>(partner)];
         Matrix before_inverse{};
@@ -163,12 +186,27 @@ const Matching &Matcher::match(const std::vector<DrawSummary> &older, const std:
         samples.push_back({rotation_angle_degrees(identity, motion), motion});
     }
     if (!samples.empty()) {
-        const auto middle = samples.begin() + static_cast<std::ptrdiff_t>(samples.size() / 2u);
-        std::nth_element(samples.begin(), middle, samples.end(),
-                         [](const Sample &a, const Sample &b) { return a.turn < b.turn; });
+        // The largest group of samples that moved alike, the smaller turn on
+        // a tie; without a group of some size, the median turn as before.
+        std::size_t best = 0u, best_count = 0u;
+        for (std::size_t i = 0; i < samples.size(); ++i) {
+            std::size_t count = 0u;
+            for (const Sample &other : samples)
+                if (same_motion(samples[i].motion, other.motion)) ++count;
+            if (count > best_count || (count == best_count && samples[i].turn < samples[best].turn)) {
+                best = i;
+                best_count = count;
+            }
+        }
+        if (best_count < std::max<std::size_t>(3u, samples.size() / 8u)) {
+            const auto middle = samples.begin() + static_cast<std::ptrdiff_t>(samples.size() / 2u);
+            std::nth_element(samples.begin(), middle, samples.end(),
+                             [](const Sample &a, const Sample &b) { return a.turn < b.turn; });
+            best = static_cast<std::size_t>(middle - samples.begin());
+        }
         out.camera_found = true;
-        out.camera_angle_degrees = middle->turn;
-        out.camera = middle->motion;
+        out.camera_angle_degrees = samples[best].turn;
+        out.camera = samples[best].motion;
         out.camera_distance = std::sqrt(out.camera[12] * out.camera[12] + out.camera[13] * out.camera[13] +
                                         out.camera[14] * out.camera[14]);
     }
